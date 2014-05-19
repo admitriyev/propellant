@@ -9,13 +9,7 @@ require 'google/api_client/client_secrets'
 
 # Configuration that you probably don't have to change
 APPLICATION_NAME = 'Propellant'
-PLUS_LOGIN_SCOPE = 'https://www.googleapis.com/auth/plus.me,
-                https://www.googleapis.com/auth/plus.media.upload,
-                https://www.googleapis.com/auth/plus.profiles.read,
-                https://www.googleapis.com/auth/plus.stream.read,
-                https://www.googleapis.com/auth/plus.stream.write,
-                https://www.googleapis.com/auth/plus.circles.read,
-                https://www.googleapis.com/auth/plus.circles.write'
+PLUS_LOGIN_SCOPE = ['https://www.googleapis.com/auth/plus.me','https://www.googleapis.com/auth/plus.stream.write']
 
 options = {:config => nil}
 OptionParser.new do |opts|
@@ -36,18 +30,24 @@ if options[:config] == nil
     exit
 end
 
-config = YAML.load_file(options[:config])
+config = YAML.load_file(options[:config])['config']
 
 Google::APIClient.logger.level = Logger::DEBUG
+$client = Google::APIClient.new(:application_name => APPLICATION_NAME, :application_version => '0.1.0')
 
-# Build the global client
+# Load private key
+key = Google::APIClient::KeyUtils.load_from_pkcs12(
+	config['key_file'],
+	config['key_secret'])
+
+# Create a client
 $credentials = Google::APIClient::ClientSecrets.load
 $authorization = Signet::OAuth2::Client.new(
-    :authorization_uri => $credentials.authorization_uri,
     :token_credential_uri => $credentials.token_credential_uri,
-    :client_id => $credentials.client_id,
-    :client_secret => $credentials.client_secret,
-    :redirect_uri => $credentials.redirect_uris.first,
-    :scope => PLUS_LOGIN_SCOPE)
-$client = Google::APIClient.new(:application_name => APPLICATION_NAME, :application_version => '0.1.0')
-plus = $client.discovered_api('plusDomain')
+    :scope => PLUS_LOGIN_SCOPE,
+  	:audience => $credentials.token_credential_uri,
+	:issuer => config['client_email'],
+  	:signing_key => key)
+
+$authorization.fetch_access_token!
+plus = $client.discovered_api('plusDomains')
