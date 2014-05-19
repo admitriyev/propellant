@@ -4,6 +4,7 @@ require 'bundler/setup'
 require 'logger'
 require 'optparse'
 require 'yaml'
+require 'google/api_client'
 
 options = {:config => nil}
 OptionParser.new do |opts|
@@ -25,3 +26,5 @@ if options[:config] == nil
 end
 
 config = YAML.load_file(options[:config])
+
+client = Google::APIClient.new(:application_name =>'Propellant', :application_version => '0.1.0')
