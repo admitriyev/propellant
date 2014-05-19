@@ -42,12 +42,28 @@ key = Google::APIClient::KeyUtils.load_from_pkcs12(
 
 # Create a client
 $credentials = Google::APIClient::ClientSecrets.load
-$authorization = Signet::OAuth2::Client.new(
+$client.authorization = Signet::OAuth2::Client.new(
     :token_credential_uri => $credentials.token_credential_uri,
     :scope => PLUS_LOGIN_SCOPE,
   	:audience => $credentials.token_credential_uri,
 	:issuer => config['client_email'],
   	:signing_key => key)
 
-$authorization.fetch_access_token!
+$client.authorization.fetch_access_token!
 plus = $client.discovered_api('plusDomains')
+
+$client.execute(
+	:api_method => plus.activities.insert, 
+	:parameters => { 
+		'userId' => 'me',
+		'object' => {
+		  'originalContent' => 'Happy Monday! #caseofthemondays'
+		},
+		'access' => {
+		  'items' => [{
+		      'type' => 'domain'
+		  }],
+		  # Required, this does the domain restriction
+		  'domainRestricted' => true
+		}
+})
