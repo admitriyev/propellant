@@ -1,0 +1,10 @@
+{"object" : {
+  "originalContent" : "Test insert post #hashtag"
+},
+"access" : {
+  "items" : [{
+      "type" : "domain"
+  }],
+  "domainRestricted" : true
+  }
+}

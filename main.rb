@@ -28,6 +28,14 @@ OptionParser.new do |opts|
     options[:config] = config
   end
 
+  opts.on('-j', '--json json_file', 'JSON payload in a file') do |json_file|
+    options[:json_file] = json_file
+  end
+
+  opts.on('-a', '--action action', 'Action: list, insert, get') do |action|
+    options[:action] = action
+  end
+
   opts.on('-h', '--help', 'Displays Help') do
     puts opts
     exit
@@ -41,7 +49,7 @@ end
 
 config = YAML.load_file(options[:config])['config']
 
-Google::APIClient.logger.level = Logger::DEBUG
+Google::APIClient.logger.level = Logger::INFO
 $client = Google::APIClient.new(:application_name => APPLICATION_NAME, :application_version => '0.1.0')
 
 # Load private key
@@ -74,33 +82,24 @@ $client.authorization.fetch_access_token!
 plus = $client.discovered_api('plusDomains')
 
 
-puts '**** LIST *****'
+#puts 'REQUEST: ' + options[:action].to_s
+$result = nil
 
-result = $client.execute(
-	:api_method => plus.activities.list, 
-	:headers => {'Content-Type' => 'application/json'},
-	:parameters => { 'userId' => 'me', 'collection' => 'user'}
-)
+case options[:action]
+when 'list'
+	$result = $client.execute(
+		:api_method => plus.activities.list, 
+		:headers => {'Content-Type' => 'application/json'},
+		:parameters => { 'userId' => 'me', 'collection' => 'user'}
+	)
+when 'insert'
+	json_payload = JSON.load(IO.read(options[:json_file]))
+	$result = $client.execute(
+		:api_method => plus.activities.insert, 
+		:headers => {'Content-Type' => 'application/json'},
+		:parameters => { 'userId' => 'me'},
+		:body_object => json_payload
+	)
+end
 
-puts JSON.parse(result.response.body)
-
-puts '**** INSERT *****'
-
-result = $client.execute(
-	:api_method => plus.activities.insert, 
-	:headers => {'Content-Type' => 'application/json'},
-	:parameters => { 'userId' => 'me'},
-	:body_object => { 
-		'object' => {
-		  'originalContent' => 'Happy Monday! #caseofthemondays'
-		},
-		'access' => {
-		  'items' => [{
-		      'type' => 'domain'
-		  }],
-		  # Required, this does the domain restriction
-		  'domainRestricted' => true
-		}
-})
-
-puts JSON.parse(result.response.body)
+puts JSON.parse($result.response.body) if !$result.nil?
