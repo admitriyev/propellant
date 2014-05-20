@@ -1,4 +1,5 @@
 config:
+  oauth_type: user
   key_file: privatekey.p12 # File containing your private key
   key_secret: notasecret # Password to unlock private key
   client_email: get_from@google_control_panel
