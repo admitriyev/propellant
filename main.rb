@@ -9,7 +9,13 @@ require 'google/api_client/client_secrets'
 
 # Configuration that you probably don't have to change
 APPLICATION_NAME = 'Propellant'
-PLUS_LOGIN_SCOPE = ['https://www.googleapis.com/auth/plus.me','https://www.googleapis.com/auth/plus.stream.write']
+PLUS_LOGIN_SCOPE = 
+	['https://www.googleapis.com/auth/plus.circles.read', 
+	'https://www.googleapis.com/auth/plus.circles.write', 
+	'https://www.googleapis.com/auth/plus.me', 
+	'https://www.googleapis.com/auth/plus.media.upload', 
+	'https://www.googleapis.com/auth/plus.stream.read', 
+	'https://www.googleapis.com/auth/plus.stream.write']
 
 options = {:config => nil}
 OptionParser.new do |opts|
@@ -52,10 +58,24 @@ $client.authorization = Signet::OAuth2::Client.new(
 $client.authorization.fetch_access_token!
 plus = $client.discovered_api('plusDomains')
 
-$client.execute(
+
+puts '**** LIST *****'
+
+result = $client.execute(
+	:api_method => plus.activities.list, 
+	:headers => {'Content-Type' => 'application/json'},
+	:parameters => { 'userId' => 'me', 'collection' => 'user'}
+)
+
+puts JSON.parse(result.response.body)
+
+puts '**** INSERT *****'
+
+result = $client.execute(
 	:api_method => plus.activities.insert, 
-	:parameters => { 
-		'userId' => 'me',
+	:headers => {'Content-Type' => 'application/json'},
+	:parameters => { 'userId' => 'me'},
+	:body_object => { 
 		'object' => {
 		  'originalContent' => 'Happy Monday! #caseofthemondays'
 		},
@@ -67,3 +87,5 @@ $client.execute(
 		  'domainRestricted' => true
 		}
 })
+
+puts JSON.parse(result.response.body)
