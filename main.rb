@@ -6,6 +6,8 @@ require 'optparse'
 require 'yaml'
 require 'google/api_client'
 require 'google/api_client/client_secrets'
+require 'google/api_client/auth/file_storage'
+require 'google/api_client/auth/installed_app'
 
 # Configuration that you probably don't have to change
 APPLICATION_NAME = 'Propellant'
@@ -16,6 +18,7 @@ PLUS_LOGIN_SCOPE =
 	'https://www.googleapis.com/auth/plus.media.upload', 
 	'https://www.googleapis.com/auth/plus.stream.read', 
 	'https://www.googleapis.com/auth/plus.stream.write']
+CREDENTIAL_STORE_FILE = "#{$0}-oauth2.json"
 
 options = {:config => nil}
 OptionParser.new do |opts|
@@ -48,12 +51,24 @@ key = Google::APIClient::KeyUtils.load_from_pkcs12(
 
 # Create a client
 $credentials = Google::APIClient::ClientSecrets.load
-$client.authorization = Signet::OAuth2::Client.new(
-    :token_credential_uri => $credentials.token_credential_uri,
-    :scope => PLUS_LOGIN_SCOPE,
-  	:audience => $credentials.token_credential_uri,
-	:issuer => config['client_email'],
-  	:signing_key => key)
+
+if config['oauth_type'] == 'user'
+	 file_storage = Google::APIClient::FileStorage.new(CREDENTIAL_STORE_FILE)
+	 flow = Google::APIClient::InstalledAppFlow.new(
+	    :client_id => $credentials.client_id,
+	    :client_secret => $credentials.client_secret,
+	    :scope => PLUS_LOGIN_SCOPE
+	)
+	$client.authorization = flow.authorize(file_storage)	 
+else
+	$client.authorization = Signet::OAuth2::Client.new(
+	    :token_credential_uri => $credentials.token_credential_uri,
+	    :scope => PLUS_LOGIN_SCOPE,
+	  	:audience => $credentials.token_credential_uri,
+		:issuer => config['client_email'],
+	  	:signing_key => key
+	)
+end
 
 $client.authorization.fetch_access_token!
 plus = $client.discovered_api('plusDomains')
