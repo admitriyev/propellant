@@ -32,7 +32,7 @@ OptionParser.new do |opts|
     options[:json_file] = json_file
   end
 
-  opts.on('-a', '--action action', 'Action: list, insert, get') do |action|
+  opts.on('-a', '--action action', 'Action: list, list_all, insert, get') do |action|
     options[:action] = action
   end
 
@@ -49,7 +49,7 @@ end
 
 config = YAML.load_file(options[:config])['config']
 
-Google::APIClient.logger.level = Logger::INFO
+Google::APIClient.logger.level = Logger::INFO #DEBUG
 $client = Google::APIClient.new(:application_name => APPLICATION_NAME, :application_version => '0.1.0')
 
 # Load private key
@@ -69,37 +69,43 @@ if config['oauth_type'] == 'user'
 	)
 	$client.authorization = flow.authorize(file_storage)	 
 else
-	$client.authorization = Signet::OAuth2::Client.new(
-	    :token_credential_uri => $credentials.token_credential_uri,
-	    :scope => PLUS_LOGIN_SCOPE,
-	  	:audience => $credentials.token_credential_uri,
-		:issuer => config['client_email'],
-	  	:signing_key => key
+	client_asserter = Google::APIClient::JWTAsserter.new(
+		config['client_email'],
+	    PLUS_LOGIN_SCOPE,
+	  	key
 	)
+	$client.authorization = client_asserter.authorize(config['user_email'])
 end
 
 $client.authorization.fetch_access_token!
-plus = $client.discovered_api('plusDomains')
+plus_api = $client.discovered_api('plus')
+plus_domain_api = $client.discovered_api('plusDomains')
 
 
 #puts 'REQUEST: ' + options[:action].to_s
 $result = nil
 
 case options[:action]
+when 'list_all'
+	$result = $client.execute(
+		:api_method => plus_api.activities.list, 
+		:headers => {'Content-Type' => 'application/json'},
+		:parameters => { 'userId' => 'me', 'collection' => 'public'}
+	)
 when 'list'
 	$result = $client.execute(
-		:api_method => plus.activities.list, 
+		:api_method => plus_domain_api.activities.list, 
 		:headers => {'Content-Type' => 'application/json'},
 		:parameters => { 'userId' => 'me', 'collection' => 'user'}
 	)
 when 'insert'
 	json_payload = JSON.load(IO.read(options[:json_file]))
 	$result = $client.execute(
-		:api_method => plus.activities.insert, 
+		:api_method => plus_domain_api.activities.insert, 
 		:headers => {'Content-Type' => 'application/json'},
 		:parameters => { 'userId' => 'me'},
 		:body_object => json_payload
 	)
 end
 
-puts JSON.parse($result.response.body) if !$result.nil?
+puts JSON.pretty_generate( JSON.parse($result.response.body) ) if !$result.nil?
